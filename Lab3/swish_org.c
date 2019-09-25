@@ -11,14 +11,12 @@
 #define	START_BALANCE		(1000)		/* initial amount in each account. */
 #define	ACCOUNTS		(1000000)		/* number of accounts. */
 #define	TRANSACTIONS		(100000)	/* number of swish transaction to do. */
-#define	THREADS			(8)		/* number of threads. */
+#define	THREADS			(1)		/* number of threads. */
 #define	PROCESSING		(10000)		/* amount of work per transaction. */
 #define	MAX_AMOUNT		(100)		/* swish limit in one transaction. */
 
 typedef struct {
 	int		balance;
-	pthread_mutex_t lock;
-	pthread_mutexattr_t     attr;
 } account_t;
 
 account_t		account[ACCOUNTS];
@@ -58,27 +56,12 @@ void extra_processing()
 
 void swish(account_t* from, account_t* to, int amount)
 {
-	if( from > to){
-		pthread_mutex_lock(&from->lock);
-		pthread_mutex_lock(&to->lock);
-	} else{
-		pthread_mutex_lock(&to->lock);
-		pthread_mutex_lock(&from->lock);
-	}
-
 	if (from->balance - amount >= 0) {
 
 		extra_processing();
 
 		from->balance -= amount;
 		to->balance += amount;
-	}
-	if( from > to){
-		pthread_mutex_unlock(&from->lock);
-		pthread_mutex_unlock(&to->lock);
-	} else{
-		pthread_mutex_unlock(&to->lock);
-		pthread_mutex_unlock(&from->lock);
 	}
 }
 
@@ -94,9 +77,9 @@ void* work(void* p)
 		j = rand() % ACCOUNTS;
 		a = rand() % MAX_AMOUNT;
 
-		//do
-		k = rand() % ACCOUNTS;
-		//while (k == j);
+		do
+			k = rand() % ACCOUNTS;
+		while (k == j);
 
 		swish(&account[j], &account[k], a);
 	}
@@ -126,21 +109,9 @@ int main(int argc, char** argv)
 
 	for (i = 0; i < ACCOUNTS; i += 1){
 		account[i].balance = START_BALANCE;
-		pthread_mutexattr_init(&account[i].attr);
-		pthread_mutexattr_settype(&account[i].attr, PTHREAD_MUTEX_RECURSIVE);
-		pthread_mutex_init(&account[i].lock, &account[i].attr);
-	}
-	for (i = 0; i < THREADS; i ++){
-		//printf("IN MAIN: Creating thread %d.\n", i);
-		result = pthread_create(&thread[i], NULL, work, NULL);
-		assert(!result);
 	}
 
-	for (i = 0; i < THREADS; i ++){
-		result = pthread_join(thread[i], NULL);
-		assert(!result);
-		//printf("IN MAIN: Thread %d has ended.\n", i);
-	}
+	work(NULL);
 
 	total = 0;
 
