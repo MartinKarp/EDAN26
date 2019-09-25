@@ -1,2 +1,6 @@
 *.out
 pthreads_demo
+swish_org
+swish_par
+*.class
+classes
