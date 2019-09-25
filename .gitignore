@@ -2,5 +2,8 @@
 pthreads_demo
 swish_org
 swish_par
-*.class
 classes
+*.class
+*.o
+live/live
+*.dot
