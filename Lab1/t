@@ -1,12 +1,4 @@
-S=100
-V=10
-U=4
-A=10
-T=4
-P=1
 
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
-javac DataflowOrg.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
 
 S=10000
 V=1000
@@ -15,20 +7,24 @@ A=100
 T=4
 P=0
 
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
-javac DataflowOrg.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
+S=100
+V=10
+U=4
+A=10
+T=4
+P=1
 
 S=100000
-V=10000
+V=100000
 U=4
-A=100
+A=1000
 T=4
 P=0
 
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
-javac DataflowOrg.java && java -Xmx2048M Dataflow $S $V $U $A $T $P
+javac DataflowMine.java && java -Xmx12192M Dataflow $S $V $U $A $T $P
+#javac DataflowOrg.java && java -Xmx12192M Dataflow $S $V $U $A $T $P
 
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 1 $P
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 2 $P
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 8 $P
-javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 16 $P
+#javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 1 $P
+#javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 2 $P
+#javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 8 $P
+#javac DataflowMine.java && java -Xmx2048M Dataflow $S $V $U $A 16 $P

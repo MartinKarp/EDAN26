@@ -10,9 +10,12 @@
 #define	WIDTH			(14)		/* text width. */
 #define	START_BALANCE		(1000)		/* initial amount in each account. */
 #define	ACCOUNTS		(1000000)		/* number of accounts. */
+//no major difference
 #define	TRANSACTIONS		(100000)	/* number of swish transaction to do. */
 #define	THREADS			(8)		/* number of threads. */
-#define	PROCESSING		(10000)		/* amount of work per transaction. */
+//gets better until 8
+#define	PROCESSING		(1000000)		/* amount of work per transaction. */
+//100 => sequential is faster too much overhead to start threads at 1000 par better
 #define	MAX_AMOUNT		(100)		/* swish limit in one transaction. */
 
 typedef struct {
@@ -73,13 +76,8 @@ void swish(account_t* from, account_t* to, int amount)
 		from->balance -= amount;
 		to->balance += amount;
 	}
-	if( from > to){
-		pthread_mutex_unlock(&from->lock);
-		pthread_mutex_unlock(&to->lock);
-	} else{
-		pthread_mutex_unlock(&to->lock);
-		pthread_mutex_unlock(&from->lock);
-	}
+	pthread_mutex_unlock(&to->lock);
+	pthread_mutex_unlock(&from->lock);
 }
 
 void* work(void* p)

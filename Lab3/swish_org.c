@@ -9,7 +9,7 @@
 
 #define	WIDTH			(14)		/* text width. */
 #define	START_BALANCE		(1000)		/* initial amount in each account. */
-#define	ACCOUNTS		(1000000)		/* number of accounts. */
+#define	ACCOUNTS		(10000)		/* number of accounts. */
 #define	TRANSACTIONS		(100000)	/* number of swish transaction to do. */
 #define	THREADS			(1)		/* number of threads. */
 #define	PROCESSING		(10000)		/* amount of work per transaction. */

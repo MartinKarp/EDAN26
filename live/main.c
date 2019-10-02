@@ -43,13 +43,13 @@ static void generate_cfg(cfg_t* cfg, size_t n, int max_succ)
 	connect(cfg, 0, 2);
 
 	for (i = 2; i < n; ++i) {
-		
+
 		s = next() % max_succ;
 		s += 1;
-		
+
 		for (j = 0; j < s; ++j) {
 			k = abs(next()) % n;
-			
+
 			connect(cfg, i, k);
 			fprintf(fp, "%d -> { %d }\n", i, k);
 		}
@@ -82,7 +82,7 @@ static void generate_usedefs(
 	}
 }
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
 	double		begin;
 	double		end;
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
 	size_t		max_succ;
 	cfg_t*		cfg;
 	bool		print;
-	int		seed = 0;
+	int		seed = 1;
 
 	progname	= argv[0];
 
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 	printf("nvertex   = %zu\n", n);
 	printf("max-succ  = %zu\n", max_succ);
 	printf("nactive   = %zu\n", nactive);
-	
+
 	if (seed == 1)
 		init_random(seed);
 	else {

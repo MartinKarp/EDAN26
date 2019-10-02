@@ -89,7 +89,7 @@ void insert_after(list_t** list, void *data)
 
 size_t length(list_t *list)
 {
-	list_t*		p; 
+	list_t*		p;
 	size_t		n;
 
 	if (list == NULL)
@@ -109,7 +109,7 @@ void* remove_first(list_t** list)
 {
 	void*		data;
 	list_t*		p;
-	
+
 	if (*list == NULL)
 		return NULL;
 	p = *list;
@@ -119,7 +119,6 @@ void* remove_first(list_t** list)
 		*list = NULL;
 	else
 		*list = p->succ;
-
 	delete_list(p);
 
 	return data;
@@ -132,19 +131,18 @@ void* remove_last(list_t** list)
 	void*		data;
 
 	h = *list;
-	
+
 	if (h == NULL)
 		return NULL;
 
 	p = h->pred;
 	data = p->data;
-	
 	if (p == h) {
 		free(p);
 		*list = NULL;
 	} else
 		delete_list(p);
-	return data;	
+	return data;
 }
 
 void free_list(list_t** list)

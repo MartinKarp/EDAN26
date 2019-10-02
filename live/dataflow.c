@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,6 +20,12 @@ struct cfg_t {
 	vertex_t*		vertex;		/* array of vertex		*/
 };
 
+struct thread_args {
+	cfg_t* 			cfg;
+	size_t			indx;
+	size_t 			nthread;
+};
+
 /* vertex_t: a control flow graph vertex. */
 struct vertex_t {
 	size_t			index;		/* can be used for debugging	*/
@@ -28,6 +35,8 @@ struct vertex_t {
 	vertex_t**		succ;		/* successor vertices 		*/
 	list_t*			pred;		/* predecessor vertices		*/
 	bool			listed;		/* on worklist			*/
+	pthread_mutex_t lock;
+	pthread_mutex_t rlock;
 };
 
 static void clean_vertex(vertex_t* v);
@@ -72,10 +81,12 @@ static void init_vertex(vertex_t* v, size_t index, size_t nsymbol, size_t max_su
 
 	v->index	= index;
 	v->succ		= calloc(max_succ, sizeof(vertex_t*));
+	pthread_mutex_init(&v->lock, NULL);
+	pthread_mutex_init(&v->rlock, NULL);
 
 	if (v->succ == NULL)
 		error("out of memory");
-	
+
 	for (i = 0; i < NSETS; i += 1)
 		v->set[i] = new_set(nsymbol);
 
@@ -114,34 +125,67 @@ void setbit(cfg_t* cfg, size_t v, set_type_t type, size_t index)
 	set(cfg->vertex[v].set[type], index);
 }
 
+void* work(void* arg);
+
 void liveness(cfg_t* cfg)
 {
+	size_t		i;
+	int 		result;
+	int nthread = 8;
+	pthread_t thread[nthread];
+	struct thread_args cfgs[nthread];
+
+	for (i = 0; i < nthread; ++i){
+		cfgs[i].cfg = cfg;
+		cfgs[i].nthread = nthread;
+		cfgs[i].indx = i;
+		printf("IN MAIN: Creating thread %lu.\n", i);
+		result = pthread_create(&thread[i], NULL, work, &cfgs[i]);
+		//printf("%lu.\n", nvthread * i);
+		//printf("%lu.\n", cfgs[i].nvertex);
+		assert(!result);
+	}
+	for (i = 0; i < nthread; i ++){
+		result = pthread_join(thread[i], NULL);
+		assert(!result);
+		printf("IN MAIN: Thread %lu has ended.\n", i);
+	}
+}
+
+void* work(void *arg){
+	struct thread_args* args = (struct thread_args*)arg;
+	cfg_t* cfg = args->cfg;
 	vertex_t*	u;
 	vertex_t*	v;
 	set_t*		prev;
-	size_t		i;
 	size_t		j;
-	list_t*		worklist;
 	list_t*		p;
 	list_t*		h;
+	list_t* 	worklist;
 
 	worklist = NULL;
 
-	for (i = 0; i < cfg->nvertex; ++i) {
-		u = &cfg->vertex[i];
-
+	for (j = args->indx; j < cfg->nvertex; j += args->nthread) {
+		u = &cfg->vertex[j];
+		pthread_mutex_lock(&u->lock);
 		insert_last(&worklist, u);
 		u->listed = true;
+		pthread_mutex_unlock(&u->lock);
 	}
 
 	while ((u = remove_first(&worklist)) != NULL) {
+		pthread_mutex_lock(&u->lock);
+		//printf("%lu \n", j);
 		u->listed = false;
 
 		reset(u->set[OUT]);
-
-		for (j = 0; j < u->nsucc; ++j)
+		//What to do? possible data race reading successors
+		for (j = 0; j < u->nsucc; ++j) {
+			pthread_mutex_lock(&(u->succ[j])->rlock);
 			or(u->set[OUT], u->set[OUT], u->succ[j]->set[IN]);
-
+			pthread_mutex_unlock(&(u->succ[j])->rlock);
+		}
+		pthread_mutex_lock(&u->rlock);
 		prev = u->prev;
 		u->prev = u->set[IN];
 		u->set[IN] = prev;
@@ -149,20 +193,25 @@ void liveness(cfg_t* cfg)
 		/* in our case liveness information... */
 		propagate(u->set[IN], u->set[OUT], u->set[DEF], u->set[USE]);
 
+		pthread_mutex_unlock(&u->rlock);
 		if (u->pred != NULL && !equal(u->prev, u->set[IN])) {
 			p = h = u->pred;
+			pthread_mutex_unlock(&u->lock);
 			do {
 				v = p->data;
+				pthread_mutex_lock(&v->lock);
 				if (!v->listed) {
 					v->listed = true;
 					insert_last(&worklist, v);
 				}
-
+				pthread_mutex_unlock(&v->lock);
 				p = p->succ;
-
 			} while (p != h);
+		} else{
+			pthread_mutex_unlock(&u->lock);
 		}
 	}
+	return NULL;
 }
 
 void print_sets(cfg_t* cfg, FILE *fp)
@@ -171,7 +220,7 @@ void print_sets(cfg_t* cfg, FILE *fp)
 	vertex_t*	u;
 
 	for (i = 0; i < cfg->nvertex; ++i) {
-		u = &cfg->vertex[i]; 
+		u = &cfg->vertex[i];
 		fprintf(fp, "use[%zu] = ", u->index);
 		print_set(u->set[USE], fp);
 		fprintf(fp, "def[%zu] = ", u->index);
