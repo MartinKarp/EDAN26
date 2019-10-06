@@ -119,8 +119,9 @@ static void consume()
 
 	while ((n = worklist->get()) > 0) {
 		f = factorial(n);
-		std::lock_guard<std::mutex> lock(m_s);
+		m_s.lock();
 		sum += f;
+		m_s.unlock();
 	}
 }
 
