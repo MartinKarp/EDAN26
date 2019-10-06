@@ -10,7 +10,9 @@ class worklist_t {
 	int*			a;
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
-		
+	std::mutex 		m;
+	std::condition_variable c;
+
 public:
 	worklist_t(size_t max)
 	{
@@ -25,7 +27,7 @@ public:
 	}
 
 	~worklist_t()
-	{	
+	{
 		free(a);
 	}
 
@@ -46,18 +48,18 @@ public:
 		int				i;
 		int				num;
 
-#if 0
+#if 1
 		/* hint: if your class has a mutex m
 		 * and a condition_variable c, you
-		 * can lock it and wait for a number 
+		 * can lock it and wait for a number
 		 * (i.e. total > 0) as follows.
 		 *
 		 */
 
 		std::unique_lock<std::mutex>	u(m);
 
-		/* the lambda is a predicate that 
-		 * returns false when waiting should 
+		/* the lambda is a predicate that
+		 * returns false when waiting should
 		 * continue.
 		 *
 		 * this mechanism will automatically
@@ -89,6 +91,7 @@ public:
 
 static worklist_t*		worklist;
 static unsigned long long	sum;
+static std::mutex m_s;
 static int			iterations;
 static int			max;
 
@@ -116,6 +119,7 @@ static void consume()
 
 	while ((n = worklist->get()) > 0) {
 		f = factorial(n);
+		std::lock_guard<std::mutex> lock(m_s);
 		sum += f;
 	}
 }
@@ -144,7 +148,7 @@ int main(void)
 	double			end;
 	unsigned long long	correct;
 	int			i;
-	
+
 	printf("mutex/condvar and mutex for sum\n");
 
 	init_timebase();
