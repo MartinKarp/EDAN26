@@ -11,6 +11,7 @@ class worklist_t {
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
 	std::mutex 		m;
+	std::mutex		add_m;
 	std::condition_variable c;
 
 public:
@@ -38,9 +39,10 @@ public:
 	}
 
 	void put(int num)
-	{
+	{	add_m.lock();
 		a[num] += 1;
 		total += 1;
+		add_m.unlock();
 	}
 
 	int get()
@@ -48,15 +50,12 @@ public:
 		int				i;
 		int				num;
 
-#if 1
 		/* hint: if your class has a mutex m
 		 * and a condition_variable c, you
 		 * can lock it and wait for a number
 		 * (i.e. total > 0) as follows.
 		 *
 		 */
-
-		std::unique_lock<std::mutex>	u(m);
 
 		/* the lambda is a predicate that
 		 * returns false when waiting should
@@ -69,8 +68,9 @@ public:
 		 *
 		 */
 
+		std::unique_lock<std::mutex>	u(m);
 		c.wait(u, [this]() { return total > 0; } );
-#endif
+		add_m.lock();
 
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
@@ -79,12 +79,16 @@ public:
 		if (i <= n) {
 			a[i] -= 1;
 			total -= 1;
-		} else if (a[0] == 0) {
+			//fprintf(stderr," %zu",total);
+		}
+		//varför?
+		else if (a[0] == 0) {
 			fprintf(stderr, "corrupt data at line %d!\n", __LINE__);
 			abort();
-		} else
+		}
+		else
 			i = 0;
-
+		add_m.unlock();
 		return i;
 	}
 };
@@ -99,11 +103,9 @@ static void produce()
 {
 	int		i;
 	int		n;
-
 	for (i = 0; i < iterations; i += 1)
 		for (n = 1; n <= max; n += 1)
 			worklist->put(n);
-
 	worklist->put(0);
 }
 
@@ -129,7 +131,7 @@ static void work()
 {
 	sum = 0;
 	worklist->reset();
-
+	//produce();
 	std::thread p(produce);
 	std::thread a(consume);
 	std::thread b(consume);
@@ -176,6 +178,7 @@ int main(void)
 
 		printf("T = %1.2lf s\n", end - begin);
 	}
+
 
 	delete worklist;
 
