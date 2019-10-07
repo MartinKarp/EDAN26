@@ -12,8 +12,9 @@
 class worklist_t {
 	int*			a;
 	size_t			n;
-	std::atomic<size_t>			total;	// sum a[0]..a[n-1]
+	size_t			total;	// sum a[0]..a[n-1]
 	std::atomic_flag flag = ATOMIC_FLAG_INIT;
+	std::mutex		add_m;
 
 public:
 	worklist_t(size_t max)
@@ -41,8 +42,10 @@ public:
 
 	void put(int num)
 	{
+		add_m.lock();
 		a[num] += 1;
 		total += 1;
+		add_m.unlock();
 	}
 
 	int get()
@@ -67,12 +70,14 @@ public:
 		 * the destructor of u is called.
 		 *
 		 */
-		while(total < 1){
-			;
-		}
         while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
+	   	while(total < 1){
+		   	;
+	   	}
+
+	  	add_m.lock();
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
 				break;
@@ -89,6 +94,7 @@ public:
 		}
 		else
 			i = 0;
+		add_m.unlock();
 		flag.clear();
 		return i;
 	}
