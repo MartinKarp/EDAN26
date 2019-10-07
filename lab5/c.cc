@@ -5,7 +5,7 @@
 #include <condition_variable>
 #include <atomic>
 
-//#include "timebase.h"
+#include "timebase.h"
 
 
 
@@ -42,12 +42,12 @@ public:
 
 	void put(int num)
 	{
-		while(flag.test_and_set(std::memory_order_acquire)){
+		while(flag_add.test_and_set(std::memory_order_acquire)){
 			;
 		}
 		a[num] += 1;
 		total += 1;
-		flag.clear();
+		flag_add.clear();
 	}
 
 	int get()
@@ -75,9 +75,12 @@ public:
         while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
+		while(flag_add.test_and_set(std::memory_order_acquire)){
+			;
+		}
 	   	while(total < 1){
-		   	flag.clear();
-			while(flag.test_and_set(std::memory_order_acquire)){
+		   	flag_add.clear();
+			while(flag_add.test_and_set(std::memory_order_acquire)){
 				;
 			}
 	   	}
@@ -98,6 +101,7 @@ public:
 		}
 		else
 			i = 0;
+		flag_add.clear();
 		flag.clear();
 		return i;
 	}
@@ -161,7 +165,7 @@ int main(void)
 
 	printf("mutex/condvar and mutex for sum\n");
 
-	//init_timebase();
+	init_timebase();
 
 	iterations	= 100000;
 	max		= 12;
@@ -174,9 +178,9 @@ int main(void)
 	worklist = new worklist_t(max);
 
 	for (i = 1; i <= 10; i += 1) {
-		//begin = timebase_sec();
+		begin = timebase_sec();
 		work();
-		//end = timebase_sec();
+		end = timebase_sec();
 
 		if (sum != correct) {
 			fprintf(stderr, "wrong output!\n");
