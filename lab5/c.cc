@@ -68,10 +68,10 @@ public:
 		 *
 		 */
 
-        while(flag.test_and_set(std::memory_order_acquire)){
+		while(total < 1){
 			;
 		}
-		while(total < 1){
+        while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
 
