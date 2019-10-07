@@ -67,14 +67,12 @@ public:
 		 * the destructor of u is called.
 		 *
 		 */
-
 		while(total < 1){
 			;
 		}
         while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
-
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
 				break;
@@ -173,6 +171,7 @@ int main(void)
 
 		if (sum != correct) {
 			fprintf(stderr, "wrong output!\n");
+			fprintf(stderr, "%llu, %llu\n",correct, sum.load());
 			abort();
 		}
 
