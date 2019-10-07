@@ -14,7 +14,7 @@ class worklist_t {
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
 	std::atomic_flag flag = ATOMIC_FLAG_INIT;
-	std::mutex		add_m;
+	std::atomic_flag flag_add = ATOMIC_FLAG_INIT;
 
 public:
 	worklist_t(size_t max)
@@ -42,10 +42,12 @@ public:
 
 	void put(int num)
 	{
-		add_m.lock();
+		while(flag_add.test_and_set(std::memory_order_acquire)){
+			;
+		}
 		a[num] += 1;
 		total += 1;
-		add_m.unlock();
+		flag_add.clear();
 	}
 
 	int get()
@@ -55,7 +57,8 @@ public:
 
 		/* hint: if your class has a mutex m
 		 * and a condition_variable c, you
-		 * can lock it and wait for a number		 * (i.e. total > 0) as follows.
+		 * can lock it and wait for a number
+		 * (i.e. total > 0) as follows.
 		 *
 		 */
 
@@ -72,8 +75,16 @@ public:
         while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
+		while(flag_add.test_and_set(std::memory_order_acquire)){
+			;
+		}
+	   	while(total < 1){
+		   	flag_add.clear();
+			while(flag_add.test_and_set(std::memory_order_acquire)){
+				;
+			}
+	   	}
 
-	  	add_m.lock();
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
 				break;
@@ -90,7 +101,7 @@ public:
 		}
 		else
 			i = 0;
-		add_m.unlock();
+		flag_add.clear();
 		flag.clear();
 		return i;
 	}
@@ -147,14 +158,14 @@ static void work()
 
 int main(void)
 {
-	double			begin = 0;
-	double			end = 1;
+	double			begin;
+	double			end;
 	unsigned long long	correct;
 	int			i;
 
 	printf("mutex/condvar and mutex for sum\n");
 
-	//init_timebase();
+	init_timebase();
 
 	iterations	= 100000;
 	max		= 12;
