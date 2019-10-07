@@ -71,7 +71,7 @@ public:
 		 *
 		 */
 
-        while(flag.test_and_set(memory_order_aquire)){
+        while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
 
@@ -85,7 +85,7 @@ public:
 			a[i] -= 1;
 			total -= 1;
 			if(total > 0) {
-				flag.clear()
+				flag.clear();
 			}
 			//fprintf(stderr," %zu",total);
 		}
