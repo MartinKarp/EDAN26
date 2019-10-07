@@ -55,8 +55,7 @@ public:
 
 		/* hint: if your class has a mutex m
 		 * and a condition_variable c, you
-		 * can lock it and wait for a number
-		 * (i.e. total > 0) as follows.
+		 * can lock it and wait for a number		 * (i.e. total > 0) as follows.
 		 *
 		 */
 
@@ -73,9 +72,6 @@ public:
         while(flag.test_and_set(std::memory_order_acquire)){
 			;
 		}
-	   	while(total < 1){
-		   	;
-	   	}
 
 	  	add_m.lock();
 		for (i = 1; i <= n; i += 1)
@@ -151,14 +147,14 @@ static void work()
 
 int main(void)
 {
-	double			begin;
-	double			end;
+	double			begin = 0;
+	double			end = 1;
 	unsigned long long	correct;
 	int			i;
 
 	printf("mutex/condvar and mutex for sum\n");
 
-	init_timebase();
+	//init_timebase();
 
 	iterations	= 100000;
 	max		= 12;
