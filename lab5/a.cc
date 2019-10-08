@@ -11,7 +11,6 @@ class worklist_t {
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
 	std::mutex 		m;
-	std::mutex		add_m;
 	std::condition_variable c;
 
 public:
@@ -39,10 +38,11 @@ public:
 	}
 
 	void put(int num)
-	{	add_m.lock();
+	{
+		std::unique_lock<std::mutex>	u(m);
 		a[num] += 1;
 		total += 1;
-		add_m.unlock();
+		c.notify_all();
 	}
 
 	int get()
@@ -70,7 +70,6 @@ public:
 
 		std::unique_lock<std::mutex>	u(m);
 		c.wait(u, [this]() { return total > 0; } );
-		add_m.lock();
 
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
@@ -88,7 +87,6 @@ public:
 		}
 		else
 			i = 0;
-		add_m.unlock();
 		return i;
 	}
 };
