@@ -5,7 +5,7 @@
 #include <condition_variable>
 #include <atomic>
 
-#include "timebase.h"
+//#include "timebase.h"
 
 
 
@@ -40,14 +40,32 @@ public:
 		memset(a, 0, n*sizeof a[0]);
 	}
 
+	void lock()
+	{
+		while(flag.test_and_set(std::memory_order_acquire)){}
+	}
+
+	void unlock()
+	{
+		flag.clear(std::memory_order_release);
+	}
+
+	void add_lock()
+	{
+		while(flag_add.test_and_set(std::memory_order_acquire)){}
+	}
+
+	void add_unlock()
+	{
+		flag_add.clear(std::memory_order_release);
+	}
+
 	void put(int num)
 	{
-		while(flag_add.test_and_set(std::memory_order_acquire)){
-			;
-		}
+		add_lock();
 		a[num] += 1;
 		total += 1;
-		flag_add.clear();
+		add_unlock();
 	}
 
 	int get()
@@ -72,17 +90,11 @@ public:
 		 * the destructor of u is called.
 		 *
 		 */
-        while(flag.test_and_set(std::memory_order_acquire)){
-			;
-		}
-		while(flag_add.test_and_set(std::memory_order_acquire)){
-			;
-		}
+        lock();
+		add_lock();
 	   	while(total < 1){
-		   	flag_add.clear();
-			while(flag_add.test_and_set(std::memory_order_acquire)){
-				;
-			}
+		   	add_unlock();
+			add_lock();
 	   	}
 
 		for (i = 1; i <= n; i += 1)
@@ -101,8 +113,8 @@ public:
 		}
 		else
 			i = 0;
-		flag_add.clear();
-		flag.clear();
+		add_unlock();
+		unlock();
 		return i;
 	}
 };
@@ -165,7 +177,7 @@ int main(void)
 
 	printf("mutex/condvar and mutex for sum\n");
 
-	init_timebase();
+	//init_timebase();
 
 	iterations	= 100000;
 	max		= 12;
@@ -178,9 +190,9 @@ int main(void)
 	worklist = new worklist_t(max);
 
 	for (i = 1; i <= 10; i += 1) {
-		begin = timebase_sec();
+		//begin = timebase_sec();
 		work();
-		end = timebase_sec();
+		//end = timebase_sec();
 
 		if (sum != correct) {
 			fprintf(stderr, "wrong output!\n");
