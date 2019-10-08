@@ -55,10 +55,8 @@ public:
 
 	void put(int num)
 	{
-		lock();
 		a[num] += 1;
 		total += 1;
-		unlock();
 	}
 
 	int get()
@@ -84,11 +82,6 @@ public:
 		 *
 		 */
         lock();
-	   	while(total < 1){
-		   	unlock();
-			lock();
-	   	}
-
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
 				break;
@@ -145,14 +138,14 @@ static void work()
 {
 	sum = 0;
 	worklist->reset();
-	//produce();
-	std::thread p(produce);
+	produce();
+	//std::thread p(produce);
 	std::thread a(consume);
 	std::thread b(consume);
 	std::thread c(consume);
 	std::thread d(consume);
 
-	p.join();
+	//p.join();
 	a.join();
 	b.join();
 	c.join();
@@ -166,7 +159,7 @@ int main(void)
 	unsigned long long	correct;
 	int			i;
 
-	printf("bool flag and atomic sum w. fetch_add\n");
+	printf("1 bool flag, atomic sum, fetch_add and pre produce\n");
 
 	init_timebase();
 
