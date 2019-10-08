@@ -159,7 +159,7 @@ int main(void)
 	unsigned long long	correct;
 	int			i;
 
-	printf("mutex/condvar and mutex for sum\n");
+	printf("1 bool flag, atomic sum, fetch_add and pre produce\n");
 
 	init_timebase();
 

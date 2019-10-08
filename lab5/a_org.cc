@@ -3,18 +3,14 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <atomic>
 
 #include "timebase.h"
-
-
 
 class worklist_t {
 	int*			a;
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
-	std::atomic_flag flag = ATOMIC_FLAG_INIT;
-
+		
 public:
 	worklist_t(size_t max)
 	{
@@ -29,7 +25,7 @@ public:
 	}
 
 	~worklist_t()
-	{
+	{	
 		free(a);
 	}
 
@@ -39,39 +35,29 @@ public:
 		memset(a, 0, n*sizeof a[0]);
 	}
 
-	void lock()
-	{
-		while(flag.test_and_set(std::memory_order_acquire)){}
-	}
-
-	void unlock()
-	{
-		flag.clear(std::memory_order_release);
-	}
-
 	void put(int num)
 	{
-		lock();
-		total += 1;
 		a[num] += 1;
-		unlock();
+		total += 1;
 	}
-
 
 	int get()
 	{
 		int				i;
 		int				num;
 
+#if 0
 		/* hint: if your class has a mutex m
 		 * and a condition_variable c, you
-		 * can lock it and wait for a number
+		 * can lock it and wait for a number 
 		 * (i.e. total > 0) as follows.
 		 *
 		 */
 
-		/* the lambda is a predicate that
-		 * returns false when waiting should
+		std::unique_lock<std::mutex>	u(m);
+
+		/* the lambda is a predicate that 
+		 * returns false when waiting should 
 		 * continue.
 		 *
 		 * this mechanism will automatically
@@ -80,34 +66,29 @@ public:
 		 * the destructor of u is called.
 		 *
 		 */
-        lock();
-		while(total < 1){
-			unlock();
-			lock();
-		}
+
+		c.wait(u, [this]() { return total > 0; } );
+#endif
+
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
 				break;
 
 		if (i <= n) {
-			total -= 1;
 			a[i] -= 1;
-			//fprintf(stderr," %zu",total);
-		}
-		//varför?
-		else if (a[0] == 0) {
+			total -= 1;
+		} else if (a[0] == 0) {
 			fprintf(stderr, "corrupt data at line %d!\n", __LINE__);
 			abort();
-		}
-		else
+		} else
 			i = 0;
-		unlock();
+
 		return i;
 	}
 };
 
 static worklist_t*		worklist;
-static std::atomic<unsigned long long> sum;
+static unsigned long long	sum;
 static int			iterations;
 static int			max;
 
@@ -115,9 +96,11 @@ static void produce()
 {
 	int		i;
 	int		n;
+
 	for (i = 0; i < iterations; i += 1)
 		for (n = 1; n <= max; n += 1)
 			worklist->put(n);
+
 	worklist->put(0);
 }
 
@@ -141,7 +124,7 @@ static void work()
 {
 	sum = 0;
 	worklist->reset();
-	//produce();
+
 	std::thread p(produce);
 	std::thread a(consume);
 	std::thread b(consume);
@@ -161,8 +144,8 @@ int main(void)
 	double			end;
 	unsigned long long	correct;
 	int			i;
-
-	printf("1 spinlock and atomic sum\n");
+	
+	printf("mutex/condvar and mutex for sum\n");
 
 	init_timebase();
 
@@ -183,13 +166,11 @@ int main(void)
 
 		if (sum != correct) {
 			fprintf(stderr, "wrong output!\n");
-			fprintf(stderr, "%llu, %llu\n",correct, sum.load());
 			abort();
 		}
 
 		printf("T = %1.2lf s\n", end - begin);
 	}
-
 
 	delete worklist;
 

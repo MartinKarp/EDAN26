@@ -175,7 +175,7 @@ int main(void)
 	unsigned long long	correct;
 	int			i;
 
-	printf("mutex/condvar and mutex for sum\n");
+	printf("double spinlock and atomic sum\n");
 
 	init_timebase();
 
