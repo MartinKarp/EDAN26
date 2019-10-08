@@ -13,8 +13,8 @@ class worklist_t {
 	int*			a;
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
-	std::atomic_flag flag = ATOMIC_FLAG_INIT;
-	std::atomic_flag flag_add = ATOMIC_FLAG_INIT;
+	std::atomic<bool> flag = ATOMIC_FLAG_INIT;
+	std::atomic<bool> flag_add = ATOMIC_FLAG_INIT;
 
 public:
 	worklist_t(size_t max)
@@ -40,14 +40,40 @@ public:
 		memset(a, 0, n*sizeof a[0]);
 	}
 
+	void lock()
+	{
+		bool expected = false;
+
+		while(!flag.compare_exchange_weak(expected, true, std::memory_order_acquire)){
+			expected = false;
+		}
+	}
+
+	void unlock()
+	{
+		flag.store(false, std::memory_order_release);
+	}
+
+	void add_lock()
+	{
+		bool expected = false;
+
+		while(!flag_add.compare_exchange_weak(expected, true, std::memory_order_acquire)){
+			expected = false;
+		}
+	}
+
+	void add_unlock()
+	{
+		flag_add.store(false, std::memory_order_release);
+	}
+
 	void put(int num)
 	{
-		while(flag_add.test_and_set(std::memory_order_acquire)){
-			;
-		}
+		add_lock();
 		a[num] += 1;
 		total += 1;
-		flag_add.clear();
+		add_unlock();
 	}
 
 	int get()
@@ -72,17 +98,11 @@ public:
 		 * the destructor of u is called.
 		 *
 		 */
-        while(flag.test_and_set(std::memory_order_acquire)){
-			;
-		}
-		while(flag_add.test_and_set(std::memory_order_acquire)){
-			;
-		}
+        lock();
+		add_lock();
 	   	while(total < 1){
-		   	flag_add.clear();
-			while(flag_add.test_and_set(std::memory_order_acquire)){
-				;
-			}
+		   	add_unlock();
+			add_lock();
 	   	}
 
 		for (i = 1; i <= n; i += 1)
@@ -101,8 +121,8 @@ public:
 		}
 		else
 			i = 0;
-		flag_add.clear();
-		flag.clear();
+		add_unlock();
+		unlock();
 		return i;
 	}
 };
@@ -111,7 +131,6 @@ static worklist_t*		worklist;
 static std::atomic<unsigned long long> sum;
 static int			iterations;
 static int			max;
-volatile global int VAR;
 
 static void produce()
 {
@@ -135,9 +154,7 @@ static void consume()
 
 	while ((n = worklist->get()) > 0) {
 		f = factorial(n);
-		VAR ^= 1234;
-		sum += f;
-		VAR ^= 5678;
+		sum.fetch_add( f, std::memory_order_relaxed);
 	}
 }
 
