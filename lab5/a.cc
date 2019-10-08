@@ -87,7 +87,6 @@ public:
 		}
 		else
 			i = 0;
-		c.notify_all();
 		return i;
 	}
 };
