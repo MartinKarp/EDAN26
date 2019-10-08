@@ -138,7 +138,7 @@ static void work()
 {
 	sum = 0;
 	worklist->reset();
-	//produce();
+	produce();
 	//std::thread p(produce);
 	std::thread a(consume);
 	std::thread b(consume);
