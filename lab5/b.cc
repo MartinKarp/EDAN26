@@ -12,7 +12,6 @@ class worklist_t {
 	size_t			n;
 	size_t			total;	// sum a[0]..a[n-1]
 	std::mutex 		m;
-	std::mutex		add_m;
 	std::condition_variable c;
 
 public:
@@ -150,7 +149,7 @@ int main(void)
 	unsigned long long	correct;
 	int			i;
 
-	printf("double mutex, 1 condvar and atomic sum\n");
+	printf("1 mutex, 1 condvar, normal lock/unlock put and atomic sum\n");
 
 	init_timebase();
 
