@@ -5,7 +5,7 @@
 #include <condition_variable>
 #include <atomic>
 
-//#include "timebase.h"
+#include "timebase.h"
 
 
 
@@ -164,7 +164,7 @@ int main(void)
 
 	printf("mutex/condvar and mutex for sum\n");
 
-	//init_timebase();
+	init_timebase();
 
 	iterations	= 100000;
 	max		= 12;
@@ -177,9 +177,9 @@ int main(void)
 	worklist = new worklist_t(max);
 
 	for (i = 1; i <= 10; i += 1) {
-		//begin = timebase_sec();
+		begin = timebase_sec();
 		work();
-		//end = timebase_sec();
+		end = timebase_sec();
 
 		if (sum != correct) {
 			fprintf(stderr, "wrong output!\n");
