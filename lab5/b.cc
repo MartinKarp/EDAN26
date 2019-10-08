@@ -40,10 +40,12 @@ public:
 	}
 
 	void put(int num)
-	{	add_m.lock();
+	{
+		m.lock();
 		a[num] += 1;
 		total += 1;
-		add_m.unlock();
+		m.unlock();
+		c.notify_all();
 	}
 
 	int get()
@@ -71,7 +73,6 @@ public:
 
 		std::unique_lock<std::mutex>	u(m);
 		c.wait(u, [this]() { return total > 0; } );
-		add_m.lock();
 
 		for (i = 1; i <= n; i += 1)
 			if (a[i] > 0)
@@ -89,7 +90,6 @@ public:
 		}
 		else
 			i = 0;
-		add_m.unlock();
 		return i;
 	}
 };
