@@ -108,7 +108,6 @@ static worklist_t*		worklist;
 static std::atomic<unsigned long long> sum;
 static int			iterations;
 static int			max;
-static std::mutex	m;
 
 static void produce()
 {
@@ -132,9 +131,7 @@ static void consume()
 
 	while ((n = worklist->get()) > 0) {
 		f = factorial(n);
-		m.lock();
 		sum.fetch_add( f, std::memory_order_relaxed);
-		m.unlock();
 	}
 }
 
