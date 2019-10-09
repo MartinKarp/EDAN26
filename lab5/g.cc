@@ -44,6 +44,7 @@ public:
 		bool expected = false;
 
 		while(!flag.compare_exchange_weak(expected, true, std::memory_order_acquire, std::memory_order_relaxed))){
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			expected = false;
 		}
 	}
