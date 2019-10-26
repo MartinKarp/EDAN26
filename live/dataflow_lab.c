@@ -5,11 +5,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <pthread.h>
-#include <omp.h>
 #include "dataflow.h"
-#include "set.h"
 #include "error.h"
 #include "list.h"
+#include "set.h"
 
 typedef struct vertex_t	vertex_t;
 typedef struct task_t	task_t;
@@ -42,9 +41,6 @@ struct vertex_t {
 
 static void clean_vertex(vertex_t* v);
 static void init_vertex(vertex_t* v, size_t index, size_t nsymbol, size_t max_succ);
-
-//my functions
-void* work(void* arg);
 
 cfg_t* new_cfg(size_t nvertex, size_t nsymbol, size_t max_succ)
 {
@@ -129,111 +125,32 @@ void setbit(cfg_t* cfg, size_t v, set_type_t type, size_t index)
 	set(cfg->vertex[v].set[type], index);
 }
 
-void or_opt(set_t* t,set_t* a, set_t* b)
-{
-	size_t	i;
-	//uint64_t temp;
-
-	//maybe add if statement?
-	//maybe do fetch or instead
-	//if statement breaks implementation in some way
-	for (i = 0; i < t->n; ++i){
-		t->a[i] |= b->a[i];
-	}
-}
-
-void propagate_opt(set_t* in, set_t* out, set_t* def, set_t* use)
-{
-	size_t	i;
-
-	for (i = 0; (i + 3) < in->n; i += 4){
-		in->a[i] = (out->a[i] & ~def->a[i]) | use->a[i];
-		in->a[i+1] = (out->a[i+1] & ~def->a[i+1]) | use->a[i+1];
-		in->a[i+2] = (out->a[i+2] & ~def->a[i+2]) | use->a[i+2];
-		in->a[i+3] = (out->a[i+3] & ~def->a[i+3]) | use->a[i+3];
-	}
-	for (; i< in->n; ++i){
-		in->a[i] = (out->a[i] & ~def->a[i]) | use->a[i];
-	}
-
-}
-void 	insert_last_opt(list_t**, void*);
-void*	remove_first_opt(list_t**);
-
-
-
-void insert_last_opt(list_t** list1, void *p)
-{
-	list_t*		tmp;
-	list_t*		list2;
-
-	list2 = new_list(p);
-
-	if (*list1 == NULL)
-		*list1 = list2;
-	else if (list2 != NULL) {
-		(*list1)->pred->succ = list2;
-		list2->pred->succ = *list1;
-		tmp	= (*list1)->pred;
-		(*list1)->pred = list2->pred;
-		list2->pred = tmp;
-	}
-}
-void* remove_first_opt(list_t** list)
-{
-	void*		data;
-	list_t*		p;
-
-	if (*list == NULL)
-		return NULL;
-	p = *list;
-	data = p->data;
-
-	if (*list == (*list)->succ)
-		*list = NULL;
-	else
-		*list = p->succ;
-	delete_list(p);
-
-	return data;
-}
+void* work(void* arg);
 
 void liveness(cfg_t* cfg)
 {
 	size_t		i;
-	size_t		j;
-	vertex_t*	u;
-	//int 		result;
+	int 		result;
 	int nthread = 8;
 	pthread_t thread[nthread];
 	struct thread_args cfgs[nthread];
-	omp_set_num_threads(nthread);
+	printf("Lab version\n");
 
-	printf("Inlined version without OUT\n");
+
 	for (i = 0; i < nthread; ++i){
 		cfgs[i].cfg = cfg;
 		cfgs[i].nthread = nthread;
 		cfgs[i].indx = i;
-		//printf("IN MAIN: Creating thread %lu.\n", i);
-
-		pthread_create(&thread[i], NULL, work, &cfgs[i]);
+		printf("IN MAIN: Creating thread %lu.\n", i);
+		result = pthread_create(&thread[i], NULL, work, &cfgs[i]);
 		//printf("%lu.\n", nvthread * i);
 		//printf("%lu.\n", cfgs[i].nvertex);
-		//assert(!result);
+		assert(!result);
 	}
 	for (i = 0; i < nthread; i ++){
-		pthread_join(thread[i], NULL);
-		//assert(!result);
-		//printf("IN MAIN: Thread %lu has ended.\n", i);
-	}
-
-	#pragma omp parallel private(i,j)
-	#pragma omp for schedule(static, cfg->nvertex / omp_get_num_procs())
-	for (i = 0; i < cfg->nvertex; ++i) {
-		u = &cfg->vertex[i];
-		for (j = 0; j < u->nsucc; ++j) {
-			or_opt(u->set[OUT], u->set[OUT], u->succ[j]->set[IN]);
-		}
+		result = pthread_join(thread[i], NULL);
+		assert(!result);
+		printf("IN MAIN: Thread %lu has ended.\n", i);
 	}
 }
 
@@ -247,7 +164,6 @@ void* work(void *arg){
 	list_t*		p;
 	list_t*		h;
 	list_t* 	worklist;
-	set_t*		t = new_set(cfg->nsymbol);
 
 	worklist = NULL;
 
@@ -259,16 +175,16 @@ void* work(void *arg){
 		pthread_mutex_unlock(&u->lock);
 	}
 
-	while ((u = remove_first_opt(&worklist)) != NULL) {
+	while ((u = remove_first(&worklist)) != NULL) {
 		pthread_mutex_lock(&u->lock);
 		//printf("%lu \n", j);
 		u->listed = false;
 
-		reset(t);
+		reset(u->set[OUT]);
 		//What to do? possible data race reading successors
 		for (j = 0; j < u->nsucc; ++j) {
 			pthread_mutex_lock(&(u->succ[j])->rlock);
-			or_opt(t, t, u->succ[j]->set[IN]);
+			or(u->set[OUT], u->set[OUT], u->succ[j]->set[IN]);
 			pthread_mutex_unlock(&(u->succ[j])->rlock);
 		}
 		pthread_mutex_lock(&u->rlock);
@@ -277,7 +193,7 @@ void* work(void *arg){
 		u->set[IN] = prev;
 
 		/* in our case liveness information... */
-		propagate_opt(u->set[IN], t, u->set[DEF], u->set[USE]);
+		propagate(u->set[IN], u->set[OUT], u->set[DEF], u->set[USE]);
 
 		pthread_mutex_unlock(&u->rlock);
 		if (u->pred != NULL && !equal(u->prev, u->set[IN])) {
@@ -288,7 +204,7 @@ void* work(void *arg){
 				pthread_mutex_lock(&v->lock);
 				if (!v->listed) {
 					v->listed = true;
-					insert_last_opt(&worklist, v);
+					insert_last(&worklist, v);
 				}
 				pthread_mutex_unlock(&v->lock);
 				p = p->succ;

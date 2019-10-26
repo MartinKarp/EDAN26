@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <pthread.h>
-#include <omp.h>
 #include "dataflow.h"
 #include "set.h"
 #include "error.h"
@@ -138,7 +137,9 @@ void or_opt(set_t* t,set_t* a, set_t* b)
 	//maybe do fetch or instead
 	//if statement breaks implementation in some way
 	for (i = 0; i < t->n; ++i){
-		t->a[i] |= b->a[i];
+		if(~t->a[i]){
+			t->a[i] |= b->a[i];
+		}
 	}
 }
 
@@ -201,15 +202,12 @@ void* remove_first_opt(list_t** list)
 void liveness(cfg_t* cfg)
 {
 	size_t		i;
-	size_t		j;
-	vertex_t*	u;
 	//int 		result;
 	int nthread = 8;
 	pthread_t thread[nthread];
 	struct thread_args cfgs[nthread];
-	omp_set_num_threads(nthread);
 
-	printf("Inlined version without OUT\n");
+	printf("Inlined version with if\n");
 	for (i = 0; i < nthread; ++i){
 		cfgs[i].cfg = cfg;
 		cfgs[i].nthread = nthread;
@@ -226,15 +224,6 @@ void liveness(cfg_t* cfg)
 		//assert(!result);
 		//printf("IN MAIN: Thread %lu has ended.\n", i);
 	}
-
-	#pragma omp parallel private(i,j)
-	#pragma omp for schedule(static, cfg->nvertex / omp_get_num_procs())
-	for (i = 0; i < cfg->nvertex; ++i) {
-		u = &cfg->vertex[i];
-		for (j = 0; j < u->nsucc; ++j) {
-			or_opt(u->set[OUT], u->set[OUT], u->succ[j]->set[IN]);
-		}
-	}
 }
 
 void* work(void *arg){
@@ -247,7 +236,6 @@ void* work(void *arg){
 	list_t*		p;
 	list_t*		h;
 	list_t* 	worklist;
-	set_t*		t = new_set(cfg->nsymbol);
 
 	worklist = NULL;
 
@@ -264,11 +252,11 @@ void* work(void *arg){
 		//printf("%lu \n", j);
 		u->listed = false;
 
-		reset(t);
+		reset(u->set[OUT]);
 		//What to do? possible data race reading successors
 		for (j = 0; j < u->nsucc; ++j) {
 			pthread_mutex_lock(&(u->succ[j])->rlock);
-			or_opt(t, t, u->succ[j]->set[IN]);
+			or_opt(u->set[OUT], u->set[OUT], u->succ[j]->set[IN]);
 			pthread_mutex_unlock(&(u->succ[j])->rlock);
 		}
 		pthread_mutex_lock(&u->rlock);
@@ -277,7 +265,7 @@ void* work(void *arg){
 		u->set[IN] = prev;
 
 		/* in our case liveness information... */
-		propagate_opt(u->set[IN], t, u->set[DEF], u->set[USE]);
+		propagate_opt(u->set[IN], u->set[OUT], u->set[DEF], u->set[USE]);
 
 		pthread_mutex_unlock(&u->rlock);
 		if (u->pred != NULL && !equal(u->prev, u->set[IN])) {
